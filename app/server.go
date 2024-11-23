@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
@@ -24,5 +25,13 @@ func main() {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
 	}
-	conn.Write([]byte("+PONG\r\n"))
+	defer conn.Close()
+
+	buf := make([]byte, 4096)
+	r, err := conn.Read(buf)
+	data := bytes.Split(buf[:r], []byte("\n"))
+
+	for i := 0; i < len(data); i++ {
+		conn.Write([]byte("+PONG\r\n"))
+	}
 }
