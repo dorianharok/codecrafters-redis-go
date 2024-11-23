@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -30,12 +32,28 @@ func handleConnection(conn net.Conn) {
 
 	for {
 		buf := make([]byte, 4096)
-		r, err := conn.Read(buf)
+		n, err := conn.Read(buf)
 		if err != nil {
 			fmt.Println("Error reading from connection: ", err.Error())
 			return
 		}
 
-		conn.Write([]byte("+PONG\r\n"))
+		data := buf[:n]
+		parts := bytes.Split(data, []byte("\r\n"))
+
+		if len(parts) >= 4 {
+			cmd := strings.ToUpper(string(parts[2]))
+
+			switch cmd {
+			case "PING":
+				conn.Write([]byte("+PONG\r\n"))
+			case "ECHO":
+				if len(parts) >= 5 {
+					arg := string(parts[4])
+					response := fmt.Sprintf("$%d\r\n%s\r\n", len(arg), arg)
+					conn.Write([]byte(response))
+				}
+			}
+		}
 	}
 }
