@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+var (
+	redisMap = make(map[string]string)
+)
+
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
@@ -52,6 +56,21 @@ func handleConnection(conn net.Conn) {
 					arg := string(parts[4])
 					response := fmt.Sprintf("$%d\r\n%s\r\n", len(arg), arg)
 					conn.Write([]byte(response))
+				}
+			case "SET":
+				if len(parts) >= 7 {
+					key := string(parts[4])
+					value := string(parts[6])
+					redisMap[key] = value
+					conn.Write([]byte("+OK\r\n"))
+				}
+			case "GET":
+				if len(parts) >= 5 {
+					key := string(parts[4])
+					value, ok := redisMap[key]
+					if ok {
+						conn.Write([]byte("+" + value + "\r\n"))
+					}
 				}
 			}
 		}
