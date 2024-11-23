@@ -7,12 +7,7 @@ import (
 	"os"
 )
 
-// Ensures gofmt doesn't remove the "net" and "os" imports in stage 1 (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
-
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
 	l, err := net.Listen("tcp", "0.0.0.0:6379")
@@ -20,6 +15,7 @@ func main() {
 		fmt.Println("Failed to bind to port 6379")
 		os.Exit(1)
 	}
+
 	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
@@ -28,10 +24,32 @@ func main() {
 	defer conn.Close()
 
 	buf := make([]byte, 4096)
-	r, err := conn.Read(buf)
-	data := bytes.Split(buf[:r], []byte("\n"))
 
-	for i := 0; i < len(data); i++ {
-		conn.Write([]byte("+PONG\r\n"))
+	// 계속해서 명령어 읽기
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("Error reading from connection: ", err.Error())
+			return
+		}
+		if n == 0 {
+			continue
+		}
+
+		data := buf[:n]
+
+		// RESP 프로토콜 형식인지 확인
+		if bytes.HasPrefix(data, []byte("*")) {
+			// RESP 프로토콜: 하나의 PONG 응답
+			conn.Write([]byte("+PONG\r\n"))
+		} else {
+			// 일반 텍스트: 줄 단위로 처리
+			commands := bytes.Split(data, []byte("\n"))
+			for _, cmd := range commands {
+				if len(bytes.TrimSpace(cmd)) > 0 {
+					conn.Write([]byte("+PONG\r\n"))
+				}
+			}
+		}
 	}
 }
